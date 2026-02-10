@@ -1,0 +1,258 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>Media Upload Service</title>
+        <style>
+            body {
+                font-family:
+                    -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+                    Helvetica, Arial, sans-serif;
+                background: #f4f4f9;
+                padding: 40px;
+            }
+            h1 {
+                text-align: center;
+                color: #333;
+                margin-bottom: 30px;
+            }
+            .upload-container {
+                background: white;
+                padding: 20px;
+                border-radius: 12px;
+                box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+                text-align: center;
+                margin-bottom: 40px;
+                max-width: 600px;
+                margin-left: auto;
+                margin-right: auto;
+            }
+            .upload-btn {
+                background: #007bff;
+                color: white;
+                border: none;
+                padding: 10px 20px;
+                border-radius: 6px;
+                cursor: pointer;
+                font-size: 16px;
+                margin-left: 10px;
+            }
+            .upload-btn:hover {
+                background: #0056b3;
+            }
+            .upload-btn:disabled {
+                background: #ccc;
+                cursor: not-allowed;
+            }
+            .status-log {
+                text-align: left;
+                margin-top: 15px;
+                font-size: 13px;
+                max-height: 100px;
+                overflow-y: auto;
+                color: #555;
+            }
+            .log-success {
+                color: green;
+            }
+            .log-error {
+                color: red;
+                font-weight: bold;
+            }
+            .grid {
+                display: grid;
+                grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+                gap: 25px;
+            }
+            .card {
+                background: white;
+                border-radius: 12px;
+                overflow: hidden;
+                box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+                cursor: pointer;
+                transition: transform 0.2s;
+            }
+            .card:hover {
+                transform: translateY(-5px);
+            }
+
+            .thumbnail-container {
+                width: 100%;
+                height: 160px;
+                background: #eee;
+                position: relative;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                overflow: hidden;
+            }
+            .thumb-img,
+            .preview-gif {
+                width: 100%;
+                height: 100%;
+                object-fit: cover;
+                display: none;
+                position: absolute;
+                top: 0;
+                left: 0;
+            }
+            .spinner {
+                border: 4px solid #f3f3f3;
+                border-top: 4px solid #3498db;
+                border-radius: 50%;
+                width: 30px;
+                height: 30px;
+                animation: spin 1s linear infinite;
+            }
+            @keyframes spin {
+                0% {
+                    transform: rotate(0deg);
+                }
+                100% {
+                    transform: rotate(360deg);
+                }
+            }
+            .info {
+                padding: 15px;
+            }
+            .filename {
+                font-weight: 600;
+                color: #333;
+                margin-bottom: 4px;
+                word-break: break-all;
+            }
+            .hint {
+                font-size: 12px;
+                color: #888;
+            }
+            .empty-state {
+                text-align: center;
+                color: #888;
+                grid-column: 1/-1;
+                padding: 40px;
+                font-size: 18px;
+            }
+        </style>
+    </head>
+    <body>
+        <h1>Media Upload Service</h1>
+
+        <div class="upload-container">
+            <h3>Upload Video(s)</h3>
+            <input type="file" id="fileInput" accept=".mp4" multiple />
+            <button onclick="uploadFiles()" class="upload-btn" id="upBtn">
+                Upload
+            </button>
+            <div id="statusLog" class="status-log"></div>
+        </div>
+
+        <div id="video-grid" class="grid">
+            <div class="empty-state">Loading videos...</div>
+        </div>
+
+        <script>
+            setInterval(loadVideos, 2000);
+            loadVideos();
+
+            async function uploadFiles() {
+                const input = document.getElementById("fileInput");
+                const btn = document.getElementById("upBtn");
+                const log = document.getElementById("statusLog");
+
+                if (input.files.length === 0) {
+                    log.innerHTML = "<div>Please select files first.</div>";
+                    return;
+                }
+
+                btn.disabled = true;
+                log.innerHTML = "<div>Starting upload...</div>";
+
+                const uploads = Array.from(input.files).map((file) =>
+                    uploadSingleFile(file, log),
+                );
+
+                // Wait for all uploads to finish (success or fail)
+                await Promise.all(uploads);
+
+                btn.disabled = false;
+                input.value = ""; // Reset
+                loadVideos(); // Refresh Grid
+            }
+
+            async function uploadSingleFile(file, logContainer) {
+                const formData = new FormData();
+                formData.append("video", file);
+
+                try {
+                    const res = await fetch("/api/upload", {
+                        method: "POST",
+                        body: formData,
+                    });
+
+                    if (res.ok) {
+                        logContainer.innerHTML += `<div class='log-success'>✓ ${file.name}: Queued</div>`;
+                    } else {
+                        // This catches "503 Service Unavailable" (Queue Full)
+                        logContainer.innerHTML += `<div class='log-error'>✗ ${file.name}: Server Busy (Dropped)</div>`;
+                    }
+                } catch (err) {
+                    logContainer.innerHTML += `<div class='log-error'>✗ ${file.name}: Network Error</div>`;
+                }
+            }
+
+            async function loadVideos() {
+                try {
+                    const response = await fetch("/api/videos");
+                    const videos = await response.json();
+                    const videoList = videos || [];
+
+                    const grid = document.getElementById("video-grid");
+                    const isShowingMessage = grid.querySelector(".empty-state");
+                    if (
+                        !isShowingMessage &&
+                        grid.childElementCount === videoList.length
+                    )
+                        return;
+
+                    grid.innerHTML = "";
+
+                    if (videoList.length === 0) {
+                        grid.innerHTML =
+                            '<div class="empty-state">No videos uploaded yet.<br>Run the client or use the uploader above!</div>';
+                        return;
+                    }
+
+                    videoList.forEach((video) => {
+                        const card = document.createElement("div");
+                        card.className = "card";
+                        const mp4Url = `/uploads/${video}`;
+                        const gifUrl = `/uploads/${video}_preview.gif`;
+                        const jpgUrl = `/uploads/${video}_thumbnail.jpg`;
+
+                        card.innerHTML = `
+                        <div class="thumbnail-container"
+                             onmouseenter="this.querySelector('.preview-gif').style.display='block'"
+                             onmouseleave="this.querySelector('.preview-gif').style.display='none'">
+                            <div class="spinner"></div>
+                            <img src="${jpgUrl}" class="thumb-img"
+                                 onload="this.style.display='block'"
+                                 onerror="this.style.display='none'; setTimeout(() => this.src='${jpgUrl}?t=' + new Date().getTime(), 2000)">
+                            <img src="${gifUrl}" class="preview-gif"
+                                 onerror="this.style.display='none'; setTimeout(() => this.src='${gifUrl}?t=' + new Date().getTime(), 2000)">
+                        </div>
+                        <div class="info">
+                            <div class="filename">${video}</div>
+                            <div class="hint">Click to watch full video</div>
+                        </div>
+                    `;
+                        card.onclick = () => window.open(mp4Url, "_blank");
+                        grid.appendChild(card);
+                    });
+                } catch (error) {
+                    console.error("Error loading videos:", error);
+                }
+            }
+        </script>
+    </body>
+</html>

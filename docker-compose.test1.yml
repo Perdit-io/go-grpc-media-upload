@@ -1,0 +1,25 @@
+services:
+    server:
+        build:
+            context: .
+            dockerfile: Dockerfile.server
+        command: ["./server", "-c", "2", "-q", "5"]
+        ports:
+            - "50051:50051"
+            - "8080:8080"
+        networks:
+            - media-net
+
+    client:
+        build:
+            context: .
+            dockerfile: Dockerfile.client
+        command: ["./client", "-p", "2", "-addr", "server:50051"]
+        depends_on:
+            - server
+        networks:
+            - media-net
+
+networks:
+    media-net:
+        driver: bridge

@@ -1,0 +1,22 @@
+syntax = "proto3";
+
+package media;
+
+// This tells Go where to put the generated files
+option go_package = "./pb";
+
+service MediaUpload {
+  // Client streams chunks -> Server returns one final status
+  rpc UploadVideo (stream VideoChunk) returns (UploadStatus);
+}
+
+message VideoChunk {
+  string filename = 1; // Sent in the first chunk
+  bytes content = 2;   // The raw binary data (e.g., 32KB chunks)
+}
+
+message UploadStatus {
+  string message = 1;
+  bool success = 2;
+  string video_id = 3; // Used later for the GUI
+}

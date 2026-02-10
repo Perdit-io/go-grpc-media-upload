@@ -1,0 +1,22 @@
+FROM golang:1.25.5-alpine
+
+# Install FFmpeg
+RUN apk add --no-cache ffmpeg
+
+WORKDIR /app
+
+# Copy dependency files and download
+COPY go.mod go.sum ./
+RUN go mod download
+
+# Copy source code
+COPY . .
+
+# Build the binary
+RUN go build -o server ./cmd/server
+
+# Expose the necessary ports
+EXPOSE 50051 8080
+
+# Run it
+CMD ["./server"]
