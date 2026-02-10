@@ -54,7 +54,7 @@ I implemented the rate-limiting logic using a **Non-Blocking Buffered Channel** 
            [ Reject ]           [ Worker Pool ]
                                    |  |  |
                                 [ FFmpeg ] [ FFmpeg ]
-```2
+```
 
 ### Concurrency Model
 Instead of OS threads, I utilized **Goroutines** (M:N scheduling) for the Worker Pool. This allows the system to handle thousands of concurrent connections with minimal memory footprint (~2KB per routine).
