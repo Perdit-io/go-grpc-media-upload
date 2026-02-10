@@ -1,5 +1,3 @@
-![Build Status](https://github.com/Perdit-io/go-grpc-media-upload/actions/workflows/test.yml/badge.svg)
-
 # Distributed Media Upload Service
 
 A high-performance, concurrent Producer-Consumer system simulating an IoT-to-Cloud video processing pipeline. Built with **Go (Golang)**, **gRPC**, **Protocol Buffers**, and **Docker**.
